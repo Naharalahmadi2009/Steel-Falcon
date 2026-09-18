@@ -69,18 +69,22 @@ function weapon(){
 let gun;
 
 function soldier(color,enemy=true){
- const g=new THREE.Group();
- const body=capsule(color,.38,.72);body.position.y=1.3;g.add(body);
- const head=sphere(0,2.12,0,.31,enemy?0x8b4440:0xc88f70);g.add(head);
- for(const x of [-.48,.48]){const arm=capsule(enemy?0x353b3e:0x263d43,.13,.58);arm.position.set(x,1.38,0);arm.rotation.z=x>0?-.18:.18;g.add(arm)}
- for(const x of [-.19,.19]){const leg=capsule(0x20272a,.15,.65);leg.position.set(x,.55,0);g.add(leg)}
- const gunm=box(0,0,0,.09,.1,.85,0x0a0d0f);gunm.position.set(.38,1.38,.42);gunm.rotation.x=Math.PI/2;g.add(gunm);
- if(enemy){const visor=box(0,2.15,.27,.32,.06,.06,0xff3c48);g.add(visor)}
- return g
+ const g=new THREE.Group(); g.userData.enemy=enemy;
+ const torso=new THREE.Mesh(new THREE.BoxGeometry(.62,.78,.34),mat(color));torso.position.y=1.28;torso.rotation.x=.04;torso.castShadow=true;g.add(torso);
+ const vest=new THREE.Mesh(new THREE.BoxGeometry(.66,.42,.38),mat(enemy?0x202629:0x24474a));vest.position.set(0,1.35,.03);g.add(vest);
+ const head=sphere(0,2.02,0,.29,enemy?0x8b6250:0xc88f70);g.add(head);
+ const helmet=sphere(0,2.18,0,.32,enemy?0x1b2022:0x274044);helmet.scale.y=.48;g.add(helmet);
+ const neck=new THREE.Mesh(new THREE.CylinderGeometry(.11,.11,.18,10),mat(0x4a3530));neck.position.y=1.83;g.add(neck);
+ const parts=[];
+ for(const x of [-.43,.43]){const arm=capsule(enemy?0x30373a:0x315055,.12,.52);arm.position.set(x,1.35,0);arm.rotation.z=x>0?-.16:.16;arm.userData.limb=true;g.add(arm);parts.push(arm)}
+ for(const x of [-.18,.18]){const leg=capsule(enemy?0x252b2d:0x26393b,.145,.62);leg.position.set(x,.57,0);leg.userData.limb=true;g.add(leg);parts.push(leg)}
+ const rifle=new THREE.Mesh(new THREE.BoxGeometry(.1,.1,.9),mat(0x090b0c));rifle.position.set(.35,1.35,.38);rifle.rotation.x=Math.PI/2;g.add(rifle);
+ if(enemy){const patch=new THREE.Mesh(new THREE.BoxGeometry(.16,.12,.03),mat(0x8e3137));patch.position.set(.26,1.5,.2);g.add(patch)}
+ g.userData.limbs=parts; return g
 }
 function makeEnemy(x,z,i){
  const mesh=soldier(i%5===0?0x5b3032:0x3c4244,true);mesh.position.set(x,0,z);scene.add(mesh);
- return {x,z,mesh,hp:4,role:["assault","flanker","suppressor","scout"][i%4],state:"patrol",cool:.5+Math.random(),patrolAngle:Math.random()*6.28,search:0,target:{x,z},cover:null,alive:true}
+ return {x,z,mesh,hp:4,role:["assault","flanker","suppressor","scout"][i%4],state:"patrol",cool:.5+Math.random(),patrolAngle:Math.random()*6.28,search:0,target:{x,z},cover:null,alive:true,stamina:1,alertedAt:0,anim:Math.random()*6.28}
 }
 function makeAlly(){
  const mesh=soldier(0x235c4f,false);mesh.position.set(-14,0,10);scene.add(mesh);
@@ -130,19 +134,29 @@ function doReload(){if(running&&!reload&&mag<30&&reserve>0)reload=1.25}
 
 function updateAI(dt){
  let live=enemies.filter(e=>e.alive),visible=false;
+ const squadLeader=live.find(e=>e.role==="scout")||live[0];
+ for(const e of live){ e.anim+=dt*(e.state==="combat"?7:3); if(e.mesh.userData.limbs){const swing=Math.sin(e.anim)*.08;e.mesh.userData.limbs[0].rotation.x=swing;e.mesh.userData.limbs[1].rotation.x=-swing;e.mesh.userData.limbs[2].rotation.x=-swing;e.mesh.userData.limbs[3].rotation.x=swing;} }
  for(const e of live){
    const d=dist(e,player),los=d<38&&hasLOS(e.x,e.z,player.x,player.z);
-   if(los){visible=true;lastKnown={x:player.x,z:player.z};e.search=4.5;e.state="combat";alertLevel=clamp(alertLevel+dt*1.8,0,100)}
+   if(los){visible=true;lastKnown={x:player.x,z:player.z};e.search=6.5;e.state="combat";e.alertedAt=missionTime;alertLevel=clamp(alertLevel+dt*2.4,0,100)}
    else if(e.search>0){e.search-=dt;e.state="search"}
    else e.state="patrol";
+   if(e.state==="combat" && squadLeader && e!==squadLeader && dist(e,squadLeader)<24 && e.search<2.5)e.search=3.5;
    e.cool-=dt;
    if(e.state==="combat"){
      const side=e.role==="flanker"?(e.x<lastKnown.x?-1:1):0;
-     let tx=lastKnown.x+(side?side*8:0),tz=lastKnown.z+(e.role==="suppressor"?-6:3);
+     const lane=e.role==="scout"?-10:(e.role==="suppressor"?-7:4);
+     let tx=lastKnown.x+(side?side*9:0),tz=lastKnown.z+lane;
+     if(e.role==="scout" && d>15) moveEntity(e,(lastKnown.x-e.x)/Math.max(1,d),(lastKnown.z-e.z)/Math.max(1,d),3.5,dt);
+     if(e.role==="scout" && d<=15){ e.mesh.rotation.y=Math.atan2(player.x-e.x,player.z-e.z); }
      if(e.role==="assault"&&d>10)moveEntity(e,(tx-e.x)/Math.max(1,Math.hypot(tx-e.x,tz-e.z)),(tz-e.z)/Math.max(1,Math.hypot(tx-e.x,tz-e.z)),2.3,dt);
      if(e.role==="flanker"){moveEntity(e,(tx-e.x)/Math.max(1,Math.hypot(tx-e.x,tz-e.z)),(tz-e.z)/Math.max(1,Math.hypot(tx-e.x,tz-e.z)),3.0,dt)}
      if(e.role==="suppressor"&&d>18)moveEntity(e,(lastKnown.x-e.x)/d,(lastKnown.z-e.z)/d,1.2,dt);
-     if(e.cool<=0&&los&&d<35){shootEnemy(e);e.cool=e.role==="suppressor"?.75:1.25+Math.random()*.8}
+     if(e.cool<=0&&los&&d<35){
+       shootEnemy(e);
+       e.cool=e.role==="suppressor"?.62:e.role==="scout"?1.5:1.05+Math.random()*.7;
+       if(e.role==="assault" && d<9) e.cool=.75;
+     }
    }else if(e.state==="search"){
      const dx=lastKnown.x-e.x,dz=lastKnown.z-e.z,dd=Math.hypot(dx,dz)||1;
      moveEntity(e,dx/dd,dz/dd,2.0,dt);if(e.cool<=0&&dd<22&&hasLOS(e.x,e.z,lastKnown.x,lastKnown.z)){shootEnemy(e);e.cool=1.7}
@@ -150,9 +164,15 @@ function updateAI(dt){
      e.patrolAngle+=Math.sin(missionTime*.5+e.x)*dt*.35;
      moveEntity(e,Math.cos(e.patrolAngle),Math.sin(e.patrolAngle),.65,dt);
    }
-   e.mesh.position.set(e.x,0,e.z);e.mesh.rotation.y=Math.atan2(player.x-e.x,player.z-e.z);
+   e.mesh.position.set(e.x,0,e.z);
+   const faceX=(e.state==="patrol"?e.x+Math.cos(e.patrolAngle):player.x),faceZ=(e.state==="patrol"?e.z+Math.sin(e.patrolAngle):player.z);
+   e.mesh.rotation.y=Math.atan2(faceX-e.x,faceZ-e.z);
  }
- if(visible&&alertLevel>20&&Math.random()<dt*.8)radio("Contact! Enemy squad has your position.");
+ if(visible&&alertLevel>20&&Math.random()<dt*.8){
+   const msg=alertLevel>70?"CONTACT! FLANKER MOVING!":"Contact! Enemy squad has your position.";
+   radio(msg);
+   if(Math.random()<.35) announce(alertLevel>70?"ENEMY FLANKING":"CONTACT FRONT");
+ }
  else if(!visible&&alertLevel>0)alertLevel=Math.max(0,alertLevel-dt*2.4);
  document.getElementById("squad").textContent=alertLevel>55?"Enemy squad: HUNTING":alertLevel>15?"Enemy squad: SEARCHING":"Enemy squad: PATROL";
 }
