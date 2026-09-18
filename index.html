@@ -1,1 +1,205 @@
-<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Steel Falcon — Blackout Assault</title><style>*{box-sizing:border-box}body{margin:0;overflow:hidden;background:#020608;color:#dffcff;font:14px Arial}canvas{display:block}.screen{position:fixed;inset:0;z-index:5;display:grid;place-items:center;background:#020608eF}.card{background:#050b0f;padding:34px;border:1px solid #00eaff;text-align:center;max-width:620px}.card h1{font-size:48px;letter-spacing:8px;color:#00eaff}.button{display:inline-block;padding:15px 28px;background:#00d9ff;color:#001014;font-weight:bold;cursor:pointer}.hidden{display:none}.hud{position:fixed;inset:0;pointer-events:none;padding:16px;text-shadow:0 2px 3px #000}.top{display:flex;gap:14px;align-items:center;font-weight:bold}.bar{width:150px;height:10px;background:#18252a;border:1px solid #31545c}.fill{display:block;height:100%;background:#00eaff}.objective,#squad{position:absolute;top:62px;left:18px;background:#03090ddd;border:1px solid #00eaff99;padding:12px;line-height:1.7}.objective{top:62px}.prompt{position:absolute;bottom:75px;left:50%;transform:translateX(-50%);background:#03090ddd;border:1px solid #00eaff;padding:12px 20px;font-weight:bold}.cross{position:absolute;left:50%;top:50%;font-size:28px;transform:translate(-50%,-50%);color:#00eaff}.help{position:absolute;bottom:15px;left:18px;color:#86aeb5}#map{position:absolute;right:18px;top:18px;width:150px;height:150px;border:1px solid #00eaff;background:#02090bdd}#squad{left:auto;right:18px;top:180px;width:190px}#callout{position:absolute;top:45%;left:50%;transform:translate(-50%,-50%);font-size:24px;color:#00eaff;font-weight:bold;opacity:0;transition:opacity .15s}.marker{position:absolute;color:#ff1744;font-weight:bold;font-size:13px;transform:translate(-50%,-50%)}select{background:#07151b;color:#00eaff;border:1px solid #00eaff;padding:8px;margin:10px}</style></head><body><div id="menu" class="screen"><div class="card"><h1>STEEL FALCON</h1><p>BLACKOUT ASSAULT // ACTIVE COMBAT ZONE</p><p>Rescue your teammate and reach extraction.</p><p><b>WASD</b> move · <b>Mouse</b> aim · <b>Click</b> fire · <b>R</b> reload · <b>Shift</b> sprint · <b>C</b> crouch · <b>E</b> rescue</p><label>FPS LIMIT <select id="fpsSelect"><option value="30">30 FPS</option><option value="60" selected>60 FPS</option><option value="120">120 FPS</option><option value="0">Unlimited</option></select></label><br><div id="startBtn" class="button">START ASSAULT</div></div></div><div id="end" class="screen hidden"><div class="card"><h1 id="endTitle"></h1><p id="endText"></p><div id="againBtn" class="button">PLAY AGAIN</div></div></div><div class="hud"><div class="top"><b>HEALTH</b><span class="bar"><span id="hp" class="fill"></span></span><span id="ammo">RIFLE 30/90</span><span id="status">ALLY MISSING</span><span id="fpsCounter">FPS --</span></div><div class="objective"><b>BLACKOUT OBJECTIVES</b><br>◈ Rescue green ally <span id="o1">(0/1)</span><br>◈ Reach cyan extraction <span id="o2">(0/1)</span><br>◈ Survive the assault</div><div id="squad"><b>SQUAD STATUS</b><br><span id="squadText">Waiting for contact...</span></div><div id="callout"></div><div id="markers"></div><canvas id="map" width="150" height="150"></canvas><div class="cross">+</div><div id="prompt" class="prompt">Find the green teammate</div><div class="help">WASD · Shift sprint · C crouch · Mouse aim · Click fire · R reload · E rescue</div></div><script type="module">import*as T from'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';const S=new T.Scene(),C=new T.PerspectiveCamera(75,innerWidth/innerHeight,.1,180),R=new T.WebGLRenderer({antialias:true});R.setSize(innerWidth,innerHeight);R.shadowMap.enabled=true;document.body.appendChild(R.domElement);S.background=new T.Color(0x020608);S.fog=new T.Fog(0x020608,18,100);S.add(new T.HemisphereLight(0x15505e,0x020304,1.5));let sun=new T.DirectionalLight(0x6eeeff,1.8);sun.position.set(-20,30,10);S.add(sun);const K={},M=c=>new T.MeshStandardMaterial({color:c,roughness:.55,metalness:.7,emissive:c===0x00eaff?0x00333d:0});function B(x,y,z,s,c){let m=new T.Mesh(new T.BoxGeometry(...s),M(c));m.position.set(x,y,z);m.castShadow=true;m.receiveShadow=true;S.add(m);return m}function sph(x,y,z,r,c){let m=new T.Mesh(new T.SphereGeometry(r,12,8),M(c));m.position.set(x,y,z);m.castShadow=true;S.add(m);return m}function soldier(x,z){let g=new T.Group();g.position.set(x,0,z);let b=new T.Mesh(new T.CapsuleGeometry(.42,1.05,6,8),M(0x651522));b.position.y=1.35;g.add(b);let h=sph(0,2.25,0,.34,0x9b3038);g.add(h);for(let q of[-.55,.55]){let l=new T.Mesh(new T.CapsuleGeometry(.14,.72,6,8),M(0x3a1017));l.position.set(q,1.35,0);g.add(l)}for(let q of[-.22,.22]){let l=new T.Mesh(new T.CapsuleGeometry(.16,.65,6,8),M(0x252b31));l.position.set(q,.45,0);g.add(l)}let gun=B(0,0,0,[.12,.12,1.1],0x11181c);gun.position.set(.45,1.35,.55);gun.rotation.x=Math.PI/2;g.add(gun);let eye=sph(0,0,0,.07,0xff1744);eye.position.set(0,2.3,.3);g.add(eye);S.add(g);return g}function drone(x,z){let g=new T.Group();g.position.set(x,6,z);g.add(sph(0,0,0,.65,0x401b2b));for(let i=0;i<4;i++){let a=i*Math.PI/2,arm=B(0,0,0,[.08,.08,1.7],0x25343a);arm.position.set(Math.cos(a)*.65,0,Math.sin(a)*.65);arm.rotation.y=a;g.add(arm);let r=sph(0,0,0,.22,0x00eaff);r.position.set(Math.cos(a)*1.25,.12,Math.sin(a)*1.25);g.add(r)}g.add(sph(0,0,.62,.12,0xff1744));S.add(g);return g}let p,a,en=[],shots=[],enemyShots=[],yaw=0,pitch=0,hp=100,mag=30,res=90,reloadTime=0,playing=false,fpsLimit=60,lastFrame=performance.now(),fpsTime=lastFrame,fpsFrames=0,markers=[],squad={alert:false,lastKnown:{x:0,z:22},cool:0,call:'Waiting for contact...'};const map=document.getElementById('map'),mc=map.getContext('2d');function prompt(t){document.getElementById('prompt').textContent=t}function callout(t){squad.call=t;let d=document.getElementById('callout');d.textContent=t;d.style.opacity=1;clearTimeout(callout.timer);callout.timer=setTimeout(()=>d.style.opacity=0,1100)}function reset(){document.getElementById('menu').classList.add('hidden');document.getElementById('end').classList.add('hidden');playing=true;hp=100;mag=30;res=90;reloadTime=0;yaw=0;pitch=0;squad={alert:false,lastKnown:{x:0,z:22},cool:0,call:'Waiting for contact...'};en.forEach(e=>S.remove(e.mesh));shots.forEach(b=>S.remove(b.mesh));enemyShots.forEach(b=>S.remove(b.mesh));en=[];shots=[];enemyShots=[];if(a)S.remove(a.mesh);p={x:0,z:22};a={x:-14,z:10,rescued:false,mesh:B(-14,1,10,[1.2,2,1.2],0x00ff9d)};for(let q of[[10,-5],[-20,-12],[18,10],[4,-20],[-24,2],[22,22],[0,-8],[28,5],[-30,-20]])en.push({type:'soldier',x:q[0],z:q[1],hp:3,state:'patrol',target:Math.random()*6.28,cool:Math.random()*2,role:'assault',mesh:soldier(q[0],q[1]),cover:{x:q[0]+(Math.random()-.5)*5,z:q[1]+(Math.random()-.5)*5}});for(let q of[[-10,-2],[14,-18],[25,12]])en.push({type:'drone',x:q[0],z:q[1],hp:4,state:'scan',target:0,cool:1,role:'support',mesh:drone(q[0],q[1])});for(let q of[[-6,12,7,3,3],[5,5,6,4,4],[-13,-3,5,6,3],[12,-13,7,4,5],[-20,12,5,4,3],[18,-2,4,3,3]]){B(q[0],q[4]/2,q[1],[q[2],q[4],q[3]],0x111b20);B(q[0],q[4]-.15,q[1],[q[2]*.7,.12,.08],0x00eaff)}B(30,3,-24,[9,6,9],0x17232a);C.position.set(0,2.2,22);prompt('Find the green teammate')}function reload(){if(playing&&!reloadTime&&mag<30&&res)reloadTime=1.1}function rescue(){if(playing&&!a.rescued&&Math.hypot(p.x-a.x,p.z-a.z)<3){a.rescued=true;document.getElementById('status').textContent='ALLY RESCUED';document.getElementById('o1').textContent='(1/1)';callout('Falcon team, move to extraction');prompt('Reach the cyan extraction beacon')}}document.getElementById('startBtn').onclick=reset;document.getElementById('againBtn').onclick=reset;document.getElementById('fpsSelect').onchange=e=>fpsLimit=+e.target.value;addEventListener('keydown',e=>{K[e.key.toLowerCase()]=1;if(e.key.toLowerCase()=='r')reload();if(e.key.toLowerCase()=='e')rescue()});addEventListener('keyup',e=>K[e.key.toLowerCase()]=0);R.domElement.onclick=()=>playing&&R.domElement.requestPointerLock();addEventListener('mousemove',e=>{if(document.pointerLockElement===R.domElement){yaw-=e.movementX*.002;pitch=Math.max(-.8,Math.min(.8,pitch-e.movementY*.002))}});addEventListener('mousedown',()=>{if(playing&&document.pointerLockElement===R.domElement&&mag&&!reloadTime){mag--;let d=new T.Vector3(Math.sin(yaw),0,Math.cos(yaw)),m=sph(p.x,1.5,p.z,.1,0x00eaff);shots.push({mesh:m,vx:d.x*42,vz:d.z*42,life:1})}});function end(win){playing=false;document.exitPointerLock?.();document.getElementById('end').classList.remove('hidden');document.getElementById('endTitle').textContent=win?'MISSION COMPLETE':'MISSION FAILED';document.getElementById('endText').textContent=win?'Your teammate escaped through the combat zone.':'The enemy assault overwhelmed your position. Try again.'}function shootEnemy(e){let dx=p.x-e.x,dz=p.z-e.z,d=Math.hypot(dx,dz)||1,m=sph(e.x,e.type==='drone'?6:1.5,e.z,.07,0xff1744);enemyShots.push({mesh:m,vx:dx/d*18,vz:dz/d*18,vy:e.type==='drone'?(2.2-6)/d*18:0,life:3})}function assignRoles(){let live=en.filter(e=>e.hp>0);live.forEach((e,i)=>{if(e.type==='drone')e.role='support';else{let left=e.x<squad.lastKnown.x,right=e.x>squad.lastKnown.x;e.role=i%4===0?'suppress':i%4===1?(left?'flankLeft':'flankRight'):i%4===2?'assault':'cover'}});document.getElementById('squadText').textContent=live.length+' units · '+(squad.alert?'CONTACT: '+squad.lastKnown.x.toFixed(0)+','+squad.lastKnown.z.toFixed(0):'Patrolling')+'<br>'+live.map(e=>e.role).join(' · ')}function ai(e,dt){let dx=p.x-e.x,dz=p.z-e.z,d=Math.hypot(dx,dz)||1,seen=d<28;e.cool-=dt;if(seen){if(!squad.alert){squad.alert=true;callout('Contact! All units converge!')}squad.lastKnown={x:p.x,z:p.z};squad.cool=3}if(squad.alert){let tx=squad.lastKnown.x-e.x,tz=squad.lastKnown.z-e.z,td=Math.hypot(tx,tz)||1;if(e.type==='drone'){e.target+=dt;e.x+=tx/td*dt*2.2;e.z+=tz/td*dt*2.2;e.mesh.position.y=5.5+Math.sin(e.target*3)*.7}else if(e.role==='suppress'){if(e.cool<=0&&d<35){shootEnemy(e);e.cool=1.1}e.x+=Math.cos(e.target)*dt*.5;e.z+=Math.sin(e.target)*dt*.5}else if(e.role==='flankLeft'||e.role==='flankRight'){let side=e.role==='flankLeft'?-1:1,px=squad.lastKnown.x+side*7,pz=squad.lastKnown.z+5;e.x+=(px-e.x)*dt*.45;e.z+=(pz-e.z)*dt*.45;if(e.cool<=0&&d<30){shootEnemy(e);e.cool=1.7}}else{let tx2=e.cover.x-e.x,tz2=e.cover.z-e.z,td2=Math.hypot(tx2,tz2)||1;if(d>9){e.x+=tx2/td2*dt*1.4;e.z+=tz2/td2*dt*1.4}if(e.cool<=0&&d<32){shootEnemy(e);e.cool=1.5}}}else{e.target+=dt*.7;e.x+=Math.cos(e.target)*dt*1.1;e.z+=Math.sin(e.target)*dt*1.1}e.x=Math.max(-35,Math.min(35,e.x));e.z=Math.max(-35,Math.min(35,e.z));e.mesh.position.set(e.x,e.type==='drone'?5.5:0,e.z);e.mesh.rotation.y=Math.atan2(dx,dz)}function drawMap(){mc.clearRect(0,0,150,150);mc.fillStyle='#02090d';mc.fillRect(0,0,150,150);let f=v=>(v+40)/80*150;mc.fillStyle='#17232a';for(let q of[[-6,12,7,3],[5,5,6,4],[-13,-3,5,6],[12,-13,7,4],[-20,12,5,4],[18,-2,4,3]])mc.fillRect(f(q[0]-q[2]/2),f(q[1]-q[3]/2),q[2]/80*150,q[3]/80*150);mc.fillStyle='#00eaff';mc.fillRect(f(26),f(-28),10,10);mc.fillStyle='#00ff9d';mc.fillRect(f(a.x),f(a.z),6,6);en.forEach(e=>{mc.fillStyle=e.type==='drone'?'#ff9f1c':'#ff1744';mc.fillRect(f(e.x),f(e.z),5,5)});mc.fillStyle='#00eaff';mc.fillRect(f(p.x),f(p.z),6,6)}function update(dt){if(!playing)return;if(reloadTime&&(reloadTime-=dt)<=0){let n=Math.min(30-mag,res);mag+=n;res-=n}let s=K.shift?11:K.c?3.5:6,f=(K.w?1:0)-(K.s?1:0),r=(K.d?1:0)-(K.a?1:0);p.x+=Math.sin(yaw)*f*s*dt+Math.cos(yaw)*r*s*dt;p.z+=Math.cos(yaw)*f*s*dt-Math.sin(yaw)*r*s*dt;p.x=Math.max(-35,Math.min(35,p.x));p.z=Math.max(-35,Math.min(35,p.z));C.position.set(p.x,2.2,p.z);C.rotation.set(pitch,yaw,0,'YXZ');if(a.rescued){a.x+=(p.x-a.x)*dt*2;a.z+=(p.z-a.z)*dt*2;a.mesh.position.set(a.x,1,a.z)}for(let b of shots){b.mesh.position.x+=b.vx*dt;b.mesh.position.z+=b.vz*dt;b.life-=dt;en.forEach(e=>{if(Math.hypot(b.mesh.position.x-e.x,b.mesh.position.z-e.z)<1.4){e.hp=0;b.life=0}})}shots=shots.filter(b=>{if(b.life<=0){S.remove(b.mesh);return false}return true});for(let b of enemyShots){b.mesh.position.x+=b.vx*dt;b.mesh.position.z+=b.vz*dt;b.mesh.position.y+=b.vy*dt;b.life-=dt;if(Math.hypot(b.mesh.position.x-p.x,b.mesh.position.z-p.z)<1.2){hp-=14;b.life=0}}enemyShots=enemyShots.filter(b=>{if(b.life<=0){S.remove(b.mesh);return false}return true});if(--squad.cool<=0){assignRoles();squad.cool=1}en.forEach(e=>ai(e,dt));en=en.filter(e=>{if(e.hp<=0){S.remove(e.mesh);return false}return true});let near=Math.hypot(p.x-a.x,p.z-a.z),ex=Math.hypot(p.x-30,p.z+24);if(!a.rescued&&near<5)prompt('Press E to rescue your teammate');else if(a.rescued)prompt('Reach the cyan extraction beacon');if(a.rescued&&ex<7){document.getElementById('o2').textContent='(1/1)';end(true)}if(hp<=0)end(false);document.getElementById('hp').style.width=Math.max(0,hp)+'%';document.getElementById('ammo').textContent=reloadTime?'RELOADING...':'RIFLE '+mag+'/'+res;drawMap()}function loop(now){requestAnimationFrame(loop);let min=fpsLimit?1000/fpsLimit:0;if(fpsLimit&&now-lastFrame<min)return;let dt=Math.min(.05,(now-lastFrame)/1000);lastFrame=now;update(dt);R.render(S,C);fpsFrames++;if(now-fpsTime>500){document.getElementById('fpsCounter').textContent='FPS '+Math.round(fpsFrames*1000/(now-fpsTime));fpsFrames=0;fpsTime=now}}reset();document.getElementById('menu').classList.remove('hidden');requestAnimationFrame(loop);addEventListener('resize',()=>{C.aspect=innerWidth/innerHeight;C.updateProjectionMatrix();R.setSize(innerWidth,innerHeight)})</script></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Steel Falcon — Blackout Assault</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;height:100%;overflow:hidden;background:#050709;color:#eafcff;font:14px Arial,sans-serif}canvas{display:block}
+#menu,#end{position:fixed;inset:0;z-index:20;display:grid;place-items:center;background:radial-gradient(circle,#13232a 0,#020506 65%)}.card{width:min(680px,92vw);padding:38px;border:1px solid #39d9ff;background:#050a0ddd;box-shadow:0 0 50px #00bde633;text-align:center}.card h1{margin:0 0 8px;font-size:52px;letter-spacing:10px;color:#51e7ff}.card h2{letter-spacing:3px}.card p{color:#a8c5ca;line-height:1.6}.button{display:inline-block;margin-top:18px;padding:15px 34px;background:#42ddff;color:#001015;font-weight:900;letter-spacing:2px;cursor:pointer}.button:hover{filter:brightness(1.15);transform:translateY(-1px)}.hidden{display:none!important}
+#hud{position:fixed;inset:0;z-index:10;pointer-events:none;text-shadow:0 2px 4px #000}.top{display:flex;gap:12px;align-items:center;padding:15px;font-weight:bold}.bar{width:170px;height:12px;border:1px solid #54757c;background:#132025}.fill{display:block;height:100%;background:#44e2ff}.panel{position:absolute;left:16px;top:62px;padding:12px 15px;background:#03090ddd;border:1px solid #39d9ff66;line-height:1.65}.right{left:auto;right:16px}.cross{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-size:25px;color:#dffcff}.prompt{position:absolute;left:50%;bottom:70px;transform:translateX(-50%);padding:11px 20px;background:#03090de8;border:1px solid #39d9ff;font-weight:bold}.callout{position:absolute;top:23%;left:50%;transform:translateX(-50%);font-size:25px;font-weight:900;color:#65e8ff;opacity:0;transition:.15s}.help{position:absolute;left:16px;bottom:14px;color:#9bb8bd}.kill{position:absolute;right:190px;top:18px;font-size:18px;color:#ff6b70}
+#map{position:absolute;right:16px;top:16px;width:150px;height:150px;border:1px solid #39d9ff;background:#02080bdd}.tag{position:absolute;font-size:11px;font-weight:bold;transform:translate(-50%,-50%)}
+</style></head>
+<body>
+<div id="menu"><div class="card"><h1>STEEL FALCON</h1><p><b>BLACKOUT ASSAULT</b></p><p>Push through a hostile combat zone, rescue your teammate and reach extraction. Enemy squads coordinate, flank and search when they lose sight of you.</p><p><b>WASD</b> move · <b>SHIFT</b> sprint · <b>C</b> crouch · <b>MOUSE</b> aim · <b>CLICK</b> fire · <b>R</b> reload · <b>E</b> rescue</p><div id="start" class="button">START MISSION</div></div></div>
+<div id="end" class="hidden"><div class="card"><h1 id="endTitle"></h1><p id="endText"></p><div id="again" class="button">PLAY AGAIN</div></div></div>
+<div id="hud">
+<div class="top"><b>HEALTH</b><span class="bar"><span id="hp" class="fill"></span></span><span id="ammo">RIFLE 30 / 90</span><span id="state">STEALTH</span></div>
+<div class="panel"><b>BLACKOUT</b><br>◈ Rescue teammate <span id="o1">(0/1)</span><br>◈ Reach extraction <span id="o2">(0/1)</span><br>◈ Enemies remaining: <span id="enemies">0</span></div>
+<div class="panel right"><b>SQUAD RADIO</b><br><span id="radio">No contact.</span><br><span id="squad">Enemy squad: patrol</span></div>
+<div id="callout" class="callout"></div><div id="prompt" class="prompt">Find the green teammate</div><div class="cross">+</div><canvas id="map" width="150" height="150"></canvas>
+<div class="help">WASD move · Shift sprint · C crouch · Mouse aim · Click fire · R reload · E interact</div>
+</div>
+<script type="module">
+import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js";
+
+const scene=new THREE.Scene();
+scene.background=new THREE.Color(0x050709);
+scene.fog=new THREE.Fog(0x050709,22,105);
+const camera=new THREE.PerspectiveCamera(76,innerWidth/innerHeight,.05,180);
+const renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,1.7));renderer.setSize(innerWidth,innerHeight);
+renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;document.body.appendChild(renderer.domElement);
+scene.add(new THREE.HemisphereLight(0x7ab9c8,0x080b0c,1.35));
+const sun=new THREE.DirectionalLight(0xc5eaff,2.1);sun.position.set(-25,35,12);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);scene.add(sun);
+
+const keys={};let running=false,player,ally,enemies=[],bullets=[],enemyBullets=[],obstacles=[];
+let yaw=0,pitch=0,hp=100,mag=30,reserve=90,reload=0,fireCooldown=0,damageFlash=0;
+let alertLevel=0,lastKnown={x:0,z:22},missionTime=0,kills=0,extracted=false;
+const map=document.getElementById("map"),ctx=map.getContext("2d");
+
+function mat(c,e=0){return new THREE.MeshStandardMaterial({color:c,roughness:.72,metalness:.18,emissive:e})}
+function box(x,y,z,w,h,d,c){const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat(c));m.position.set(x,y,z);m.castShadow=m.receiveShadow=true;scene.add(m);return m}
+function sphere(x,y,z,r,c){const m=new THREE.Mesh(new THREE.SphereGeometry(r,14,10),mat(c));m.position.set(x,y,z);m.castShadow=true;scene.add(m);return m}
+function capsule(c,r=.2,h=.7){return new THREE.Mesh(new THREE.CapsuleGeometry(r,h,5,8),mat(c))}
+function dist(a,b){return Math.hypot(a.x-b.x,a.z-b.z)}
+function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
+
+function makeGround(){
+ const g=box(0,-.35,0,82,.5,82,0x172024);
+ for(let i=0;i<70;i++){let x=(Math.random()-.5)*76,z=(Math.random()-.5)*76;sphere(x,-.03,z,.08+Math.random()*.16,0x334047)}
+ for(const o of [[-7,11,8,3,3],[6,5,7,4,4],[-14,-3,6,7,3],[12,-13,8,4,5],[-21,12,5,5,3],[18,-2,5,3,3],[2,-24,10,4,3],[28,7,5,9,4]]){
+   const m=box(o[0],o[4]/2,o[1],o[2],o[4],o[3],0x263239);obstacles.push({x:o[0],z:o[1],w:o[2],d:o[3],h:o[4],mesh:m});
+   box(o[0],o[4]-.12,o[1],o[2]*.72,.1,.08,0x12343a);
+ }
+ // roads
+ box(0,.02,20,78,.05,5,0x0b1114);box(-18,.025,0,5,.055,78,0x0b1114);
+ // extraction beacon
+ box(29,.15,-29,8,.25,8,0x07353a);for(let i=0;i<4;i++){let a=i*Math.PI/2;box(29+Math.cos(a)*4,2,-29+Math.sin(a)*4,.12,4,.12,0x39eaff)}
+}
+
+function weapon(){
+ const g=new THREE.Group();g.position.set(.34,-.34,-.65);g.rotation.set(-.08,.03,-.03);
+ const body=new THREE.Mesh(new THREE.BoxGeometry(.18,.22,.9),mat(0x171d20));body.position.z=-.15;g.add(body);
+ const barrel=new THREE.Mesh(new THREE.CylinderGeometry(.045,.055,.75,10),mat(0x090b0d));barrel.rotation.x=Math.PI/2;barrel.position.z=.62;g.add(barrel);
+ const stock=new THREE.Mesh(new THREE.BoxGeometry(.14,.16,.38),mat(0x22282b));stock.position.z=-.68;g.add(stock);
+ const magm=new THREE.Mesh(new THREE.BoxGeometry(.11,.28,.16),mat(0x101416));magm.position.set(0,-.25,-.1);g.add(magm);
+ const sight=new THREE.Mesh(new THREE.BoxGeometry(.04,.1,.08),mat(0x55eaff,0x113b42));sight.position.set(0,.13,.18);g.add(sight);
+ camera.add(g);scene.add(camera);return g
+}
+let gun;
+
+function soldier(color,enemy=true){
+ const g=new THREE.Group();
+ const body=capsule(color,.38,.72);body.position.y=1.3;g.add(body);
+ const head=sphere(0,2.12,0,.31,enemy?0x8b4440:0xc88f70);g.add(head);
+ for(const x of [-.48,.48]){const arm=capsule(enemy?0x353b3e:0x263d43,.13,.58);arm.position.set(x,1.38,0);arm.rotation.z=x>0?-.18:.18;g.add(arm)}
+ for(const x of [-.19,.19]){const leg=capsule(0x20272a,.15,.65);leg.position.set(x,.55,0);g.add(leg)}
+ const gunm=box(0,0,0,.09,.1,.85,0x0a0d0f);gunm.position.set(.38,1.38,.42);gunm.rotation.x=Math.PI/2;g.add(gunm);
+ if(enemy){const visor=box(0,2.15,.27,.32,.06,.06,0xff3c48);g.add(visor)}
+ return g
+}
+function makeEnemy(x,z,i){
+ const mesh=soldier(i%5===0?0x5b3032:0x3c4244,true);mesh.position.set(x,0,z);scene.add(mesh);
+ return {x,z,mesh,hp:4,role:["assault","flanker","suppressor","scout"][i%4],state:"patrol",cool:.5+Math.random(),patrolAngle:Math.random()*6.28,search:0,target:{x,z},cover:null,alive:true}
+}
+function makeAlly(){
+ const mesh=soldier(0x235c4f,false);mesh.position.set(-14,0,10);scene.add(mesh);
+ return {x:-14,z:10,mesh,rescued:false}
+}
+
+function reset(){
+ for(const e of enemies)scene.remove(e.mesh);for(const b of bullets)scene.remove(b.mesh);for(const b of enemyBullets)scene.remove(b.mesh);
+ enemies=[];bullets=[];enemyBullets=[];obstacles=[];
+ makeGround();ally=makeAlly();player={x:0,z:22};yaw=0;pitch=0;hp=100;mag=30;reserve=90;reload=0;fireCooldown=0;alertLevel=0;lastKnown={x:0,z:22};missionTime=0;kills=0;extracted=false;
+ const spots=[[10,-5],[-20,-12],[18,10],[4,-20],[-24,2],[22,22],[0,-8],[28,5],[-30,-20],[-5,-17],[24,-10],[-11,25]];
+ spots.forEach((p,i)=>enemies.push(makeEnemy(p[0],p[1],i)));
+ camera.position.set(player.x,1.72,player.z);gun=weapon();
+ document.getElementById("menu").classList.add("hidden");document.getElementById("end").classList.add("hidden");running=true;prompt("Find the green teammate");radio("Mission live. Keep moving.");announce("Steel Falcon, you're on your own.");
+}
+function prompt(t){document.getElementById("prompt").textContent=t}
+function radio(t){document.getElementById("radio").textContent=t}
+function announce(t){const e=document.getElementById("callout");e.textContent=t;e.style.opacity=1;clearTimeout(announce.t);announce.t=setTimeout(()=>e.style.opacity=0,1300)}
+function end(win){running=false;document.exitPointerLock?.();document.getElementById("end").classList.remove("hidden");document.getElementById("endTitle").textContent=win?"MISSION COMPLETE":"MISSION FAILED";document.getElementById("endText").textContent=win?"Extraction confirmed. Teammate secured and combat zone cleared enough to escape.":"You were taken out in the combat zone. Restart the mission and try a different route."}
+
+function blocked(x,z,r=.5){
+ for(const o of obstacles)if(Math.abs(x-o.x)<o.w/2+r&&Math.abs(z-o.z)<o.d/2+r)return true;
+ return false
+}
+function moveEntity(e,dx,dz,s,dt){const nx=e.x+dx*s*dt,nz=e.z+dz*s*dt;if(!blocked(nx,e.z,.45))e.x=nx;if(!blocked(e.x,nz,.45))e.z=nz;e.x=clamp(e.x,-39,39);e.z=clamp(e.z,-39,39)}
+
+const ray=new THREE.Raycaster();
+function hasLOS(x1,z1,x2,z2){
+ const dx=x2-x1,dz=z2-z1,d=Math.hypot(dx,dz);if(d<.01)return true;
+ ray.set(new THREE.Vector3(x1,1.5,z1),new THREE.Vector3(dx/d,0,dz/d));ray.far=d-.5;
+ const hits=ray.intersectObjects(obstacles.map(o=>o.mesh),false);return hits.length===0;
+}
+
+function shootEnemy(e){
+ const dx=player.x-e.x,dz=player.z-e.z,d=Math.hypot(dx,dz)||1;
+ const m=sphere(e.x,1.45,e.z,.06,0xff5b62);enemyBullets.push({mesh:m,vx:dx/d*23,vz:dz/d*23,life:2.6});
+}
+function fire(){
+ if(!running||reload||fireCooldown>0||mag<=0)return;
+ if(document.pointerLockElement!==renderer.domElement){renderer.domElement.requestPointerLock();return}
+ mag--;fireCooldown=.105;
+ const dir=new THREE.Vector3(Math.sin(yaw)*Math.cos(pitch),Math.sin(pitch),Math.cos(yaw)*Math.cos(pitch));
+ const m=sphere(camera.position.x,camera.position.y,camera.position.z,.045,0x8ff6ff);bullets.push({mesh:m,v:dir.multiplyScalar(70),life:1.3});
+ gun.rotation.z=-.04;setTimeout(()=>{if(gun)gun.rotation.z=0},55);
+}
+function doReload(){if(running&&!reload&&mag<30&&reserve>0)reload=1.25}
+
+function updateAI(dt){
+ let live=enemies.filter(e=>e.alive),visible=false;
+ for(const e of live){
+   const d=dist(e,player),los=d<38&&hasLOS(e.x,e.z,player.x,player.z);
+   if(los){visible=true;lastKnown={x:player.x,z:player.z};e.search=4.5;e.state="combat";alertLevel=clamp(alertLevel+dt*1.8,0,100)}
+   else if(e.search>0){e.search-=dt;e.state="search"}
+   else e.state="patrol";
+   e.cool-=dt;
+   if(e.state==="combat"){
+     const side=e.role==="flanker"?(e.x<lastKnown.x?-1:1):0;
+     let tx=lastKnown.x+(side?side*8:0),tz=lastKnown.z+(e.role==="suppressor"?-6:3);
+     if(e.role==="assault"&&d>10)moveEntity(e,(tx-e.x)/Math.max(1,Math.hypot(tx-e.x,tz-e.z)),(tz-e.z)/Math.max(1,Math.hypot(tx-e.x,tz-e.z)),2.3,dt);
+     if(e.role==="flanker"){moveEntity(e,(tx-e.x)/Math.max(1,Math.hypot(tx-e.x,tz-e.z)),(tz-e.z)/Math.max(1,Math.hypot(tx-e.x,tz-e.z)),3.0,dt)}
+     if(e.role==="suppressor"&&d>18)moveEntity(e,(lastKnown.x-e.x)/d,(lastKnown.z-e.z)/d,1.2,dt);
+     if(e.cool<=0&&los&&d<35){shootEnemy(e);e.cool=e.role==="suppressor"?.75:1.25+Math.random()*.8}
+   }else if(e.state==="search"){
+     const dx=lastKnown.x-e.x,dz=lastKnown.z-e.z,dd=Math.hypot(dx,dz)||1;
+     moveEntity(e,dx/dd,dz/dd,2.0,dt);if(e.cool<=0&&dd<22&&hasLOS(e.x,e.z,lastKnown.x,lastKnown.z)){shootEnemy(e);e.cool=1.7}
+   }else{
+     e.patrolAngle+=Math.sin(missionTime*.5+e.x)*dt*.35;
+     moveEntity(e,Math.cos(e.patrolAngle),Math.sin(e.patrolAngle),.65,dt);
+   }
+   e.mesh.position.set(e.x,0,e.z);e.mesh.rotation.y=Math.atan2(player.x-e.x,player.z-e.z);
+ }
+ if(visible&&alertLevel>20&&Math.random()<dt*.8)radio("Contact! Enemy squad has your position.");
+ else if(!visible&&alertLevel>0)alertLevel=Math.max(0,alertLevel-dt*2.4);
+ document.getElementById("squad").textContent=alertLevel>55?"Enemy squad: HUNTING":alertLevel>15?"Enemy squad: SEARCHING":"Enemy squad: PATROL";
+}
+
+function update(dt){
+ if(!running)return;missionTime+=dt;if(fireCooldown>0)fireCooldown-=dt;
+ if(reload>0&&(reload-=dt)<=0){const n=Math.min(30-mag,reserve);mag+=n;reserve-=n}
+ let speed=keys.shift?10:keys.c?3.2:6,fx=(keys.w?1:0)-(keys.s?1:0),sx=(keys.d?1:0)-(keys.a?1:0),len=Math.hypot(fx,sx)||1;
+ let dx=(Math.sin(yaw)*fx+Math.cos(yaw)*sx)/len,dz=(Math.cos(yaw)*fx-Math.sin(yaw)*sx)/len;
+ if(fx||sx){const before={x:player.x,z:player.z};moveEntity(player,dx,dz,speed,dt);if(player.x!==before.x||player.z!==before.z)gun.position.y=-.34+Math.sin(missionTime*10)*.012}
+ camera.position.set(player.x,keys.c?1.05:1.72,player.z);camera.rotation.set(pitch,yaw,0,"YXZ");
+ if(ally.rescued){ally.x+=(player.x-ally.x)*dt*2.2;ally.z+=(player.z-ally.z)*dt*2.2;ally.mesh.position.set(ally.x,0,ally.z)}
+ for(const b of bullets){b.mesh.position.addScaledVector(b.v,dt);b.life-=dt;
+   for(const e of enemies)if(e.alive&&Math.hypot(b.mesh.position.x-e.x,b.mesh.position.z-e.z)<1.0){e.hp--;b.life=0;if(e.hp<=0){e.alive=false;kills++;announce("Target down.");}}
+ }
+ bullets=bullets.filter(b=>{if(b.life<=0){scene.remove(b.mesh);return false}return true});
+ for(const b of enemyBullets){b.mesh.position.x+=b.vx*dt;b.mesh.position.z+=b.vz*dt;b.life-=dt;if(Math.hypot(b.mesh.position.x-player.x,b.mesh.position.z-player.z)<.8){hp-=12;b.life=0;damageFlash=.12}}
+ enemyBullets=enemyBullets.filter(b=>{if(b.life<=0){scene.remove(b.mesh);return false}return true});
+ updateAI(dt);
+ const near=dist(player,ally),ex=Math.hypot(player.x-29,player.z+29);
+ if(!ally.rescued&&near<3){prompt("Press E to rescue your teammate")}else if(ally.rescued&&ex<6){extracted=true;document.getElementById("o2").textContent="(1/1)";end(true)}else prompt(ally.rescued?"Reach the cyan extraction beacon":"Find the green teammate");
+ document.getElementById("hp").style.width=clamp(hp,0,100)+"%";document.getElementById("ammo").textContent=reload?"RELOADING...":"RIFLE "+mag+" / "+reserve;
+ document.getElementById("state").textContent=alertLevel>55?"ENGAGED":alertLevel>15?"ALERT":"STEALTH";
+ document.getElementById("enemies").textContent=enemies.filter(e=>e.alive).length;
+ if(hp<=0)end(false);drawMap();
+}
+
+function interact(){if(running&&!ally.rescued&&dist(player,ally)<3){ally.rescued=true;document.getElementById("o1").textContent="(1/1)";announce("Teammate secured. Move to extraction.");radio("Falcon Actual: extraction is northeast.");}}
+function drawMap(){
+ ctx.clearRect(0,0,150,150);ctx.fillStyle="#02090d";ctx.fillRect(0,0,150,150);
+ const f=v=>(v+40)/80*150;
+ ctx.fillStyle="#202c31";for(const o of obstacles)ctx.fillRect(f(o.x-o.w/2),f(o.z-o.d/2),o.w/80*150,o.d/80*150);
+ ctx.fillStyle="#39eaff";ctx.fillRect(f(27),f(-31),8,8);
+ ctx.fillStyle="#55ffad";ctx.fillRect(f(ally.x),f(ally.z),6,6);
+ for(const e of enemies)if(e.alive){ctx.fillStyle=alertLevel>15?"#ff4450":"#9b3338";ctx.fillRect(f(e.x),f(e.z),5,5)}
+ ctx.fillStyle="#fff";ctx.fillRect(f(player.x),f(player.z),6,6);
+}
+
+addEventListener("keydown",e=>{keys[e.key.toLowerCase()]=true;if(e.key.toLowerCase()==="r")doReload();if(e.key.toLowerCase()==="e")interact()});
+addEventListener("keyup",e=>keys[e.key.toLowerCase()]=false);
+renderer.domElement.addEventListener("mousedown",e=>{if(e.button===0)fire()});
+renderer.domElement.addEventListener("click",()=>{if(running)renderer.domElement.requestPointerLock()});
+addEventListener("mousemove",e=>{if(document.pointerLockElement===renderer.domElement){yaw-=e.movementX*.0021;pitch=clamp(pitch-e.movementY*.0021,-.95,.95)}});
+document.getElementById("start").onclick=reset;document.getElementById("again").onclick=reset;
+
+let last=performance.now();
+function loop(t){requestAnimationFrame(loop);const dt=Math.min(.05,(t-last)/1000);last=t;update(dt);renderer.render(scene,camera)}
+requestAnimationFrame(loop);
+addEventListener("resize",()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
+</script></body></html>
